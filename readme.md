@@ -1,10 +1,14 @@
-# INAV - navigation capable flight controller
-
 ![INAV](http://static.rcgroups.net/forums/attachments/6/1/0/3/7/6/a9088858-102-inav.png)
 
-# INAV 6 Horizon Hawk feature freeze
+# triNav - iNav, but for tricopters!
 
-> INAV 6 feature freeze will happen on 29th of January 2023. No new features for INAV 6 will be accepted after that date. 
+triNav is a franken-fork of [iNav](https://github.com/iNavFlight/inav) and [Triflight 0.5](https://github.com/lkaino/Triflight/releases/tag/0.5), a long-discontinued tricopter-specific fork of Cleanflight. This allows for proper tricopter manoeuvring using bespoke control algorithms.
+
+Many thanks to [lkaino](https://github.com/lkaino) for driving Triflight's original development and [jihlein](https://github.com/jihlein) for their efforts merging Triflight into iNav and Betaflight years after its abandonment. This fork wouldn't have happened without them.
+
+triNav is almost entirely untested, without support, and without promise of future releases. I do not have the free time to maintain it, nor the interest. I hope what I put forth is helpful, but expect radio silence.
+
+If you're looking for an actual hex file, you're going to have to wait or compile things yourself. If you're familiar with Linux, just install Docker and run the build script.
 
 # INAV Community
 
@@ -14,6 +18,7 @@
 
 ## Features
 
+* **Proper tricopter support!**
 * Runs on the most popular F4, F7 and H7 flight controllers
 * On Screen Display (OSD) - both character and pixel style
 * DJI OSD integration: all elements, system messages and warnings
@@ -54,10 +59,6 @@ Users of OpenTX radios (Taranis, Horus, Jumper, Radiomaster, Nirvana) can use IN
 
 [Easy INAV OSD switcher tool](https://www.mrd-rc.com/tutorials-tools-and-testing/useful-tools/inav-osd-switcher-tool/) allows you to easily switch your OSD layouts around in INAV. Choose the from and to OSD layouts, and the method of transfering the layouts.
 
-## Installation
-
-See: https://github.com/iNavFlight/inav/blob/master/docs/Installation.md
-
 ## Documentation, support and learning resources
 * [INAV 5 on a flying wing full tutorial](https://www.youtube.com/playlist?list=PLOUQ8o2_nCLkZlulvqsX_vRMfXd5zM7Ha)
 * [INAV on a multirotor drone tutorial](https://www.youtube.com/playlist?list=PLOUQ8o2_nCLkfcKsWobDLtBNIBzwlwRC8)
@@ -69,31 +70,6 @@ See: https://github.com/iNavFlight/inav/blob/master/docs/Installation.md
 * [Official Wiki](https://github.com/iNavFlight/inav/wiki)
 * [Video series by Paweł Spychalski](https://www.youtube.com/playlist?list=PLOUQ8o2_nCLloACrA6f1_daCjhqY2x0fB)
 * [Target documentation](https://github.com/iNavFlight/inav/tree/master/docs/boards)
-
-## Contributing
-
-Contributions are welcome and encouraged.  You can contribute in many ways:
-
-* Documentation updates and corrections.
-* How-To guides - received help?  help others!
-* Bug fixes.
-* New features.
-* Telling us your ideas and suggestions.
-* Buying your hardware from this [link](https://inavflight.com/shop/u/bg/)
-
-A good place to start is Telegram channel or Facebook group. Drop in, say hi.
-
-Github issue tracker is a good place to search for existing issues or report a new bug/feature request:
-
-https://github.com/iNavFlight/inav/issues
-
-https://github.com/iNavFlight/inav-configurator/issues
-
-Before creating new issues please check to see if there is an existing one, search first otherwise you waste peoples time when they could be coding instead!
-
-## Developers
-
-Please refer to the development section in the [docs/development](https://github.com/iNavFlight/inav/tree/master/docs/development) folder.
 
 ## INAV Releases
 https://github.com/iNavFlight/inav/releases
