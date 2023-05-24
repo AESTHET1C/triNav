@@ -98,6 +98,7 @@ static const box_t boxes[CHECKBOX_ITEM_COUNT + 1] = {
     { .boxId = BOXSOARING,          .boxName = "SOARING",           .permanentId = 56 },
     { .boxId = BOXCHANGEMISSION,    .boxName = "MISSION CHANGE",    .permanentId = 59 },
     { .boxId = BOXBEEPERMUTE,       .boxName = "BEEPER MUTE",       .permanentId = 60 },
+    { .boxId = BOXTAILTUNE,         .boxName = "TAILTUNE",          .permanentId = 61 },
     { .boxId = CHECKBOX_ITEM_COUNT, .boxName = NULL,                .permanentId = 0xFF }
 };
 
@@ -204,6 +205,10 @@ void initActiveBoxIds(void)
             ADD_ACTIVE_BOX(BOXSURFACE);
         }
         ADD_ACTIVE_BOX(BOXFPVANGLEMIX);
+
+        if (feature(FEATURE_TRIFLIGHT) && (mixerConfig()->platformType == PLATFORM_TRICOPTER)) {
+            ADD_ACTIVE_BOX(BOXTAILTUNE);
+        }
     }
 
     bool navReadyAltControl = sensors(SENSOR_BARO);
@@ -412,6 +417,7 @@ void packBoxModeFlags(boxBitmask_t * mspBoxModeFlags)
 #ifdef USE_MULTI_MISSION
     CHECK_ACTIVE_BOX(IS_ENABLED(IS_RC_MODE_ACTIVE(BOXCHANGEMISSION)),   BOXCHANGEMISSION);
 #endif
+    CHECK_ACTIVE_BOX(IS_ENABLED(IS_RC_MODE_ACTIVE(BOXTAILTUNE)),        BOXTAILTUNE);
 
     memset(mspBoxModeFlags, 0, sizeof(boxBitmask_t));
     for (uint32_t i = 0; i < activeBoxIdCount; i++) {

@@ -92,6 +92,7 @@
 #include "flight/failsafe.h"
 #include "flight/imu.h"
 #include "flight/mixer.h"
+#include "flight/mixer_tricopter.h"
 #include "flight/pid.h"
 #include "flight/power_limits.h"
 #include "flight/rpm_filter.h"
@@ -444,16 +445,22 @@ void init(void)
     drv_adc_config_t adc_params;
     memset(&adc_params, 0, sizeof(adc_params));
 
+    bool triflightSelected = (feature(FEATURE_TRIFLIGHT) && (mixerConfig()->platformType == PLATFORM_TRICOPTER));
+
     // Allocate and initialize ADC channels if features are configured - can't rely on sensor detection here, it's done later
     if (feature(FEATURE_VBAT)) {
         adc_params.adcFunctionChannel[ADC_BATTERY] = adcChannelConfig()->adcFunctionChannel[ADC_BATTERY];
     }
 
-    if (feature(FEATURE_RSSI_ADC)) {
+    if (feature(FEATURE_RSSI_ADC) ||
+       (triflightSelected && triflightConfig()->tri_servo_feedback == TRI_SERVO_FB_RSSI)
+       ) {
         adc_params.adcFunctionChannel[ADC_RSSI] = adcChannelConfig()->adcFunctionChannel[ADC_RSSI];
     }
 
-    if (feature(FEATURE_CURRENT_METER) && batteryMetersConfig()->current.type == CURRENT_SENSOR_ADC) {
+    if ((feature(FEATURE_CURRENT_METER) && batteryMetersConfig()->current.type == CURRENT_SENSOR_ADC) ||
+       (triflightSelected && triflightConfig()->tri_servo_feedback == TRI_SERVO_FB_CURRENT)
+       ) {
         adc_params.adcFunctionChannel[ADC_CURRENT] =  adcChannelConfig()->adcFunctionChannel[ADC_CURRENT];
     }
 
