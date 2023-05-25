@@ -191,7 +191,6 @@ uint16_t triGetCurrentServoAngle(void)
 static uint16_t getLinearServoValue(servoParam_t *servoConf, int16_t constrainedPIDOutput)
 {
     const int32_t linearYawForceAtValue = tailServoMaxYawForce * constrainedPIDOutput / TRI_YAW_FORCE_PRECISION;
-    
     const int16_t correctedAngle = getAngleFromYawCurveAtForce(linearYawForceAtValue);
     
     return getServoValueAtAngle(servoConf, correctedAngle);
@@ -220,11 +219,10 @@ void triServoMixer(int16_t PIDoutput)
 
 	*gpTailServo = getLinearServoValue(gpTailServoConf, PIDoutput);
 
-#if 1
+    // Debug
     DEBUG_SET(DEBUG_TRIFLIGHT, 0, (uint32_t)adcGetChannel(tailServoADCChannel));
     DEBUG_SET(DEBUG_TRIFLIGHT, 1, (uint32_t)tailServoADC);
     DEBUG_SET(DEBUG_TRIFLIGHT, 2, (uint32_t)tailServoAngle);
-#endif
 
     triTailTuneStep(gpTailServoConf, gpTailServo);
 
@@ -476,16 +474,14 @@ static int16_t dynamicYaw(int16_t PIDoutput)
         highRange = range - lowRange;
     }
 
-#if 0
-    DEBUG_SET(DEBUG_TRIFLIGHT, 0, mixGetMotorOutputLow());
-    DEBUG_SET(DEBUG_TRIFLIGHT, 1, mixGetMotorOutputHigh());
-#endif
+    // Debug
+    //DEBUG_SET(DEBUG_TRIFLIGHT, 0, mixGetMotorOutputLow());
+    //DEBUG_SET(DEBUG_TRIFLIGHT, 1, mixGetMotorOutputHigh());
 
-#if 0
-    DEBUG_SET(DEBUG_TRIFLIGHT, 0, range);
-    DEBUG_SET(DEBUG_TRIFLIGHT, 1, lowRange);
-    DEBUG_SET(DEBUG_TRIFLIGHT, 2, highRange);
-#endif
+    // Debug pt. 2: Debugging Boogaloo
+    //DEBUG_SET(DEBUG_TRIFLIGHT, 0, range);
+    //DEBUG_SET(DEBUG_TRIFLIGHT, 1, lowRange);
+    //DEBUG_SET(DEBUG_TRIFLIGHT, 2, highRange);
 
     // Select the yaw gain based on tail motor speed
     if (tailMotorVirtual < triflightConfig()->tri_dynamic_yaw_hoverthrottle)
@@ -519,12 +515,11 @@ static int16_t dynamicYaw(int16_t PIDoutput)
             scaledPIDoutput = PIDoutput - distanceFromMid * gain * PIDoutput / (highRange * 100);
     }
 
-#if 0
-    DEBUG_SET(DEBUG_TRIFLIGHT, 0, tailMotorVirtual);
-	DEBUG_SET(DEBUG_TRIFLIGHT, 1, gain);
-    DEBUG_SET(DEBUG_TRIFLIGHT, 2, PIDoutput);
-    DEBUG_SET(DEBUG_TRIFLIGHT, 3, scaledPIDoutput);
-#endif
+    // Debug
+    //DEBUG_SET(DEBUG_TRIFLIGHT, 0, tailMotorVirtual);
+    //DEBUG_SET(DEBUG_TRIFLIGHT, 1, gain);
+    //DEBUG_SET(DEBUG_TRIFLIGHT, 2, PIDoutput);
+    //DEBUG_SET(DEBUG_TRIFLIGHT, 3, scaledPIDoutput);
 
 	return constrain(scaledPIDoutput, -1000, 1000);
 }
@@ -550,7 +545,7 @@ static void tailMotorStep(int16_t setpoint, float dT)
         current -= dS;
     }
 
-    // Use a PT1 low-pass filter to add "slowness" to the virtual motor feedback.
+    // Apply low-pass filter to the virtual motor feedback
     // Cut-off to delay:
     // 2  Hz -> 25 ms
     // 5  Hz -> 14 ms
@@ -913,11 +908,11 @@ static void tailTuneModeServoSetup(struct servoSetup_t *pSS, servoParam_t *pServ
                         pSS->cal.waitingServoToStop = true;
                         break;
                     }
-#if 0
-                    DEBUG_SET(DEBUG_TRIFLIGHT, 0, (uint32_t)triflightConfigMutable()->tri_servo_min_adc);
-                    DEBUG_SET(DEBUG_TRIFLIGHT, 1, (uint32_t)triflightConfigMutable()->tri_servo_mid_adc);
-                    DEBUG_SET(DEBUG_TRIFLIGHT, 2, (uint32_t)triflightConfigMutable()->tri_servo_max_adc);
-#endif
+
+                    // Debug
+                    //DEBUG_SET(DEBUG_TRIFLIGHT, 0, (uint32_t)triflightConfigMutable()->tri_servo_min_adc);
+                    //DEBUG_SET(DEBUG_TRIFLIGHT, 1, (uint32_t)triflightConfigMutable()->tri_servo_mid_adc);
+                    //DEBUG_SET(DEBUG_TRIFLIGHT, 2, (uint32_t)triflightConfigMutable()->tri_servo_max_adc);
                 }
             }
 

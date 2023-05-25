@@ -66,7 +66,7 @@ typedef enum {
     INPUT_SOURCE_COUNT
 } inputSource_e;
 
-// target servo channels
+// Target servo channels
 typedef enum {
     SERVO_GIMBAL_PITCH = 0,
     SERVO_GIMBAL_ROLL = 1,

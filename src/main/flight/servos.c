@@ -63,8 +63,8 @@ PG_REGISTER_WITH_RESET_TEMPLATE(servoConfig_t, servoConfig, PG_SERVO_CONFIG, 3);
 
 PG_RESET_TEMPLATE(servoConfig_t, servoConfig,
     .servoCenterPulse = SETTING_SERVO_CENTER_PULSE_DEFAULT,
-    .servoPwmRate = SETTING_SERVO_PWM_RATE_DEFAULT,             // Default for analog servos
-    .servo_lowpass_freq = SETTING_SERVO_LPF_HZ_DEFAULT,         // Default servo update rate is 50Hz, everything above Nyquist frequency (25Hz) is going to fold and cause distortions
+    .servoPwmRate = SETTING_SERVO_PWM_RATE_DEFAULT,
+    .servo_lowpass_freq = SETTING_SERVO_LPF_HZ_DEFAULT,  // Must be less than half of the PWM rate due to aliasing
     .servo_protocol = SETTING_SERVO_PROTOCOL_DEFAULT,
     .flaperon_throw_offset = SETTING_FLAPERON_THROW_OFFSET_DEFAULT,
     .tri_unarmed_servo = SETTING_TRI_UNARMED_SERVO_DEFAULT,
@@ -123,16 +123,11 @@ STATIC_FASTRAM pt1Filter_t targetRateFilter;
 
 int16_t getFlaperonDirection(uint8_t servoPin)
 {
-    if (servoPin == SERVO_FLAPPERON_2) {
-        return -1;
-    } else {
-        return 1;
-    }
+    return ((servoPin == SERVO_FLAPPERON_2) ? -1 : 1);
 }
 
-/*
- * Compute scaling factor for upper and lower servo throw
- */
+// Computes the scaling factors for upper and lower servo throws
+// Expected values are likely below 1.0
 void servoComputeScalingFactors(uint8_t servoIndex) {
     servoMetadata[servoIndex].scaleMax = (servoParams(servoIndex)->max - servoParams(servoIndex)->middle) / 500.0f;
     servoMetadata[servoIndex].scaleMin = (servoParams(servoIndex)->middle - servoParams(servoIndex)->min) / 500.0f;
@@ -140,25 +135,19 @@ void servoComputeScalingFactors(uint8_t servoIndex) {
 
 void servosInit(void)
 {
-    // give all servos a default command
-    for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
+    for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++)
         servo[i] = servoParams(i)->middle;
-    }
 
-    /*
-     * load mixer
-     */
     loadCustomServoMixer();
 
-    // If there are servo rules after all, update variables
+    // If servo rules exist, enable servo mixer
     if (servoRuleCount > 0) {
         servoOutputEnabled = true;
         mixerUsesServos = true;
     }
 
-    for (uint8_t i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
+    for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++)
         servoComputeScalingFactors(i);
-    }
 
     if (feature(FEATURE_TRIFLIGHT) && (mixerConfig()->platformType == PLATFORM_TRICOPTER))
         triMixerInit(servoParamsMutable(SERVO_TRICOPTER_TAIL), &servo[SERVO_TRICOPTER_TAIL]);
@@ -166,35 +155,28 @@ void servosInit(void)
 
 int getServoCount(void)
 {
-    if (servoRuleCount) {
-        return 1 + maxServoIndex - minServoIndex;
-    }
-    else {
-        return 0;
-    }
+    return (servoRuleCount ? (1 + maxServoIndex - minServoIndex) : 0);
 }
 
 void loadCustomServoMixer(void)
 {
-    // reset settings
+    // Purge current servo mixer
     servoRuleCount = 0;
     minServoIndex = 255;
     maxServoIndex = 0;
     memset(currentServoMixer, 0, sizeof(currentServoMixer));
 
-    // load custom mixer into currentServoMixer
+    // Load custom mixer into currentServoMixer
     for (int i = 0; i < MAX_SERVO_RULES; i++) {
-        // check if done
-        if (customServoMixers(i)->rate == 0)
+
+        if (customServoMixers(i)->rate == 0)  // Finished loading all rules
             break;
 
-        if (customServoMixers(i)->targetChannel < minServoIndex) {
+        if (customServoMixers(i)->targetChannel < minServoIndex)
             minServoIndex = customServoMixers(i)->targetChannel;
-        }
 
-        if (customServoMixers(i)->targetChannel > maxServoIndex) {
+        if (customServoMixers(i)->targetChannel > maxServoIndex)
             maxServoIndex = customServoMixers(i)->targetChannel;
-        }
 
         memcpy(&currentServoMixer[i], customServoMixers(i), sizeof(servoMixer_t));
         servoRuleCount++;
@@ -204,7 +186,10 @@ void loadCustomServoMixer(void)
 static void filterServos(void)
 {
     if (servoConfig()->servo_lowpass_freq) {
-        // Initialize servo lowpass filter (servos are calculated at looptime rate)
+
+        // Initialize servo lowpass filters
+        // NOTE: Servos are calculated at gyro looptime rate
+        // TODO: Move this into an init function?
         if (!servoFilterIsSet) {
             for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
                 biquadFilterInitLPF(&servoFilter[i], servoConfig()->servo_lowpass_freq, getLooptime());
@@ -213,15 +198,14 @@ static void filterServos(void)
             servoFilterIsSet = true;
         }
 
-        for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
-            // Apply servo lowpass filter and do sanity cheching
+        // Apply filters
+        for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++)
             servo[i] = (int16_t)lrintf(biquadFilterApply(&servoFilter[i], (float)servo[i]));
-        }
     }
 
-    for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
+    // Constrain servo positions to prevent physical damage
+    for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++)
         servo[i] = constrain(servo[i], servoParams(i)->min, servoParams(i)->max);
-    }
 }
 
 void writeServos(void)
@@ -247,19 +231,18 @@ void writeServos(void)
 
 void servoMixer(float dT)
 {
-    int16_t input[INPUT_SOURCE_COUNT]; // Range [-500:+500]
+    int16_t input[INPUT_SOURCE_COUNT];  // Range [-500, 500]
 
     if (FLIGHT_MODE(MANUAL_MODE)) {
         input[INPUT_STABILIZED_ROLL] = rcCommand[ROLL];
         input[INPUT_STABILIZED_PITCH] = rcCommand[PITCH];
         input[INPUT_STABILIZED_YAW] = rcCommand[YAW];
-    } else {
-        // Assisted modes (gyro only or gyro+acc according to AUX configuration in Gui
+    } else {  // Assisted modes (gyro only or gyro+acc according to AUX configuration in GUI)
         input[INPUT_STABILIZED_ROLL] = axisPID[ROLL];
         input[INPUT_STABILIZED_PITCH] = axisPID[PITCH];
         input[INPUT_STABILIZED_YAW] = axisPID[YAW];
 
-        // Reverse yaw servo when inverted in 3D mode only for multirotor and tricopter
+        // Reverse yaw when inverted in 3D mode (only for multirotor and tricopter)
         if (feature(FEATURE_REVERSIBLE_MOTORS) && (rxGetChannelValue(THROTTLE) < PWM_RANGE_MIDDLE) &&
         (mixerConfig()->platformType == PLATFORM_MULTIROTOR || mixerConfig()->platformType == PLATFORM_TRICOPTER)) {
             input[INPUT_STABILIZED_YAW] *= -1;
@@ -297,12 +280,8 @@ void servoMixer(float dT)
 
     input[INPUT_STABILIZED_THROTTLE] = mixerThrottleCommand - 1000 - 500;  // Since it derives from rcCommand or mincommand and must be [-500:+500]
 
-    // center the RC input value around the RC middle value
-    // by subtracting the RC middle value from the RC input value, we get:
-    // data - middle = input
-    // 2000 - 1500 = +500
-    // 1500 - 1500 = 0
-    // 1000 - 1500 = -500
+    // Center the RC input value
+    // [1000, 2000] -> [-500, 500]
 #define GET_RX_CHANNEL_INPUT(x) (rxGetChannelValue(x) - PWM_RANGE_MIDDLE)
     input[INPUT_RC_ROLL]     = GET_RX_CHANNEL_INPUT(ROLL);
     input[INPUT_RC_PITCH]    = GET_RX_CHANNEL_INPUT(PITCH);
@@ -322,87 +301,63 @@ void servoMixer(float dT)
     input[INPUT_RC_CH16]     = GET_RX_CHANNEL_INPUT(AUX12);
 #undef GET_RX_CHANNEL_INPUT
 
-// This bypasses triflight, but that's fine for now
+    // This bypasses triflight, but that's probably fine since software support is unlikely to ever happen
 #ifdef USE_SIMULATOR
-	simulatorData.input[INPUT_STABILIZED_ROLL] = input[INPUT_STABILIZED_ROLL];
-	simulatorData.input[INPUT_STABILIZED_PITCH] = input[INPUT_STABILIZED_PITCH];
-	simulatorData.input[INPUT_STABILIZED_YAW] = input[INPUT_STABILIZED_YAW];
-	simulatorData.input[INPUT_STABILIZED_THROTTLE] = input[INPUT_STABILIZED_THROTTLE];
+    simulatorData.input[INPUT_STABILIZED_ROLL] = input[INPUT_STABILIZED_ROLL];
+    simulatorData.input[INPUT_STABILIZED_PITCH] = input[INPUT_STABILIZED_PITCH];
+    simulatorData.input[INPUT_STABILIZED_YAW] = input[INPUT_STABILIZED_YAW];
+    simulatorData.input[INPUT_STABILIZED_THROTTLE] = input[INPUT_STABILIZED_THROTTLE];
 #endif
 
-    for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
+    // Zero all servos
+    // TODO: Can this be removed? servosInit() has already set default values for the full array
+    for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++)
         servo[i] = 0;
-    }
 
-    // mix servos according to rules
+    // Mix servos according to rules
     for (int i = 0; i < servoRuleCount; i++) {
 
-        /*
-         * Check if conditions for a rule are met, not all conditions apply all the time
-         */
-    #ifdef USE_PROGRAMMING_FRAMEWORK
-        if (!logicConditionGetValue(currentServoMixer[i].conditionId)) {
-            continue; 
-        }
-    #endif
-
+#ifdef USE_PROGRAMMING_FRAMEWORK
+        // Skip rule if its condition is not true
+        if (!logicConditionGetValue(currentServoMixer[i].conditionId))
+            continue;
+#endif
         const uint8_t target = currentServoMixer[i].targetChannel;
         const uint8_t from = currentServoMixer[i].inputSource;
 
-        /*
-         * Apply mixer speed limit. 1 [one] speed unit is defined as 10us/s:
-         * 0 = no limiting
-         * 1 = 10us/s -> full servo sweep (from 1000 to 2000) is performed in 100s
-         * 10 = 100us/s -> full sweep (from 1000 to 2000)  is performed in 10s
-         * 100 = 1000us/s -> full sweep in 1s
-         */
+        // Limit servo speed
+        // 0 = no limiting
+        // 1 = 10us/s -> full servo sweep (from 1000 to 2000) takes 100s
+        // 10 = 100us/s -> full sweep takes 10s
         int16_t inputLimited = (int16_t) rateLimitFilterApply4(&servoSpeedLimitFilter[i], input[from], currentServoMixer[i].speed * 10, dT);
-
         servo[target] += ((int32_t)inputLimited * currentServoMixer[i].rate) / 100;
     }
 
-    /*
-     * When not armed, apply servo low position to all outputs that include a throttle or stabilizet throttle in the mix
-     */
+    // Set all throttle-controlled servos to lowest position if not armed
     if (!ARMING_FLAG(ARMED)) {
         for (int i = 0; i < servoRuleCount; i++) {
             const uint8_t target = currentServoMixer[i].targetChannel;
             const uint8_t from = currentServoMixer[i].inputSource;
 
-            if (from == INPUT_STABILIZED_THROTTLE || from == INPUT_RC_THROTTLE) {
+            if (from == INPUT_STABILIZED_THROTTLE || from == INPUT_RC_THROTTLE)
                 servo[target] = motorConfig()->mincommand;
-            }
         }
     }
 
+    // Convert from raw position data to pulse width
     for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
 
-        /*
-         * Apply servo rate
-         */
+        // Apply servo's rate setting
         servo[i] = ((int32_t)servoParams(i)->rate * servo[i]) / 100L;
 
-        /*
-         * Perform acumulated servo output scaling to match servo min and max values
-         * Important: is servo rate is > 100%, total servo output might be bigger than
-         * min/max
-         */
-        if (servo[i] > 0) {
-            servo[i] = (int16_t) (servo[i] * servoMetadata[i].scaleMax);
-        } else {
-            servo[i] = (int16_t) (servo[i] * servoMetadata[i].scaleMin);
-        }
+        // Perform output scaling to match servo min/max values
+        // NOTE: Result not always in bounds
+        servo[i] = (int16_t)(servo[i] * ((servo[i] > 0) ? servoMetadata[i].scaleMax : servoMetadata[i].scaleMin));
 
-        /*
-         * Add a servo midpoint to the calculation
-         */
+        // Add midpoint offset
         servo[i] += servoParams(i)->middle;
 
-        /*
-         * Constrain servo position to min/max to prevent servo damage
-         * If servo was saturated above min/max, that means that user most probably
-         * allowed the situation when smix weight sum for an output was above 100
-         */
+        // Constrain position to prevent physical damage
         servo[i] = constrain(servo[i], servoParams(i)->min, servoParams(i)->max);
     }
 
@@ -448,9 +403,8 @@ void processServoAutotrimMode(void)
                     trimStartedAt = millis();
                     trimState = AUTOTRIM_COLLECTING;
                 }
-                else {
+                else
                     break;
-                }
                 // Fallthru
 
             case AUTOTRIM_COLLECTING:
@@ -471,18 +425,17 @@ void processServoAutotrimMode(void)
                             for (int i = 0; i < servoRuleCount; i++) {
                                 const uint8_t target = currentServoMixer[i].targetChannel;
                                 const uint8_t source = currentServoMixer[i].inputSource;
-                                if (source == axis) {
+                                if (source == axis)
                                     servoParamsMutable(target)->middle = servoMiddleAccum[target] / servoMiddleAccumCount[target];
-                                }
                             }
                         }
                         trimState = AUTOTRIM_SAVE_PENDING;
                         pidResetErrorAccumulators(); //Reset Iterm since new midpoints override previously acumulated errors
                     }
                 }
-                else {
+                else
                     trimState = AUTOTRIM_IDLE;
-                }
+
                 break;
 
             case AUTOTRIM_SAVE_PENDING:
@@ -504,9 +457,8 @@ void processServoAutotrimMode(void)
                 for (int i = 0; i < servoRuleCount; i++) {
                     const uint8_t target = currentServoMixer[i].targetChannel;
                     const uint8_t source = currentServoMixer[i].inputSource;
-                    if (source == axis) {
+                    if (source == axis)
                         servoParamsMutable(target)->middle = servoMiddleBackup[target];
-                    }
                 }
             }
         }
@@ -554,9 +506,8 @@ void processContinuousServoAutotrim(const float dT)
                         const int8_t ItermUpdate = axisIterm > 0.0f ? SERVO_AUTOTRIM_UPDATE_SIZE : -SERVO_AUTOTRIM_UPDATE_SIZE;
                         for (int i = 0; i < servoRuleCount; i++) {
 #ifdef USE_PROGRAMMING_FRAMEWORK
-                            if (!logicConditionGetValue(currentServoMixer[i].conditionId)) {
+                            if (!logicConditionGetValue(currentServoMixer[i].conditionId))
                                 continue;
-                            }
 #endif
                             const uint8_t target = currentServoMixer[i].targetChannel;
                             const uint8_t source = currentServoMixer[i].inputSource;
@@ -566,7 +517,7 @@ void processContinuousServoAutotrim(const float dT)
                                 const float servoRate = servoParams(target)->rate / 100.0f;
                                 servoParamsMutable(target)->middle += (int16_t)(ItermUpdate * mixerRate * servoRate);
                                 servoParamsMutable(target)->middle = constrain(servoParamsMutable(target)->middle, SERVO_AUTOTRIM_CENTER_MIN, SERVO_AUTOTRIM_CENTER_MAX);
-                                }
+                            }
                         }
                         pidReduceErrorAccumulators(ItermUpdate, axis);
                     }
@@ -595,15 +546,13 @@ void processContinuousServoAutotrim(const float dT)
 
 void processServoAutotrim(const float dT) {
 #ifdef USE_SIMULATOR
-    if (ARMING_FLAG(SIMULATOR_MODE_HITL)) {
+    if (ARMING_FLAG(SIMULATOR_MODE_HITL))
         return;
-    }
 #endif
-    if (feature(FEATURE_FW_AUTOTRIM)) {
+    if (feature(FEATURE_FW_AUTOTRIM))
         processContinuousServoAutotrim(dT);
-    } else {
+    else
         processServoAutotrimMode();
-    }
 }
 
 bool isServoOutputEnabled(void)
