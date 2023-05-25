@@ -67,11 +67,11 @@ PG_RESET_TEMPLATE(triflightConfig_t, triflightConfig,
 static float dT;
 
 static tailTune_t tailTune = {.mode = TT_MODE_NONE};
+static uint16_t tailServoADCValue    = 0;
 
 static int16_t  tailMotorAccelerationDelay_angle;
 static int16_t  tailMotorDecelerationDelay_angle;
 static int16_t  tailMotorPitchZeroAngle;
-static uint16_t tailServoADC         = 0;
 static uint16_t tailServoAngle       = TRI_TAIL_SERVO_ANGLE_MID;
 static uint8_t  tailServoDirection   = TRI_SERVO_DIRECTION_NORMAL;
 static int32_t  tailServoMaxYawForce = 0;
@@ -100,7 +100,7 @@ static servoParam_t * gpTailServoConf;
 static adcFunction_e tailServoADCChannel = ADC_RSSI;
 
 static int16_t  dynamicYaw(int16_t PIDoutput);
-static uint16_t feedbackServoStep(uint16_t tailServoADC);
+static uint16_t feedbackServoStep(uint16_t tailServoADCValue);
 static uint16_t getAngleFromYawCurveAtForce(int32_t force);
 static uint16_t getLinearServoValue(servoParam_t *servoConf, int16_t constrainedPIDOutput);
 static float    getPitchCorrectionAtTailAngle(float angle, float thrustFactor);
@@ -205,7 +205,7 @@ void triServoMixer(int16_t PIDoutput)
     if (triflightConfig()->tri_servo_feedback != TRI_SERVO_FB_VIRTUAL)
     {
         // Read new servo feedback signal sample and run it through filter
-        tailServoADC = pt1FilterApply4(&feedbackFilter, 
+        tailServoADCValue = pt1FilterApply4(&feedbackFilter,
                                        adcGetChannel(tailServoADCChannel),
                                        TRI_SERVO_FEEDBACK_LPF_CUTOFF_HZ,
                                        dT);
@@ -217,7 +217,7 @@ void triServoMixer(int16_t PIDoutput)
 
     // Debug
     DEBUG_SET(DEBUG_TRIFLIGHT, 0, (uint32_t)adcGetChannel(tailServoADCChannel));
-    DEBUG_SET(DEBUG_TRIFLIGHT, 1, (uint32_t)tailServoADC);
+    DEBUG_SET(DEBUG_TRIFLIGHT, 1, (uint32_t)tailServoADCValue);
     DEBUG_SET(DEBUG_TRIFLIGHT, 2, (uint32_t)tailServoAngle);
 
     triTailTuneStep(gpTailServoConf, gpTailServo);
@@ -403,13 +403,12 @@ static uint16_t virtualServoStep(uint16_t currentAngle, int16_t servoSpeed, floa
     return currentAngle;
 }
 
-static uint16_t feedbackServoStep(uint16_t tailServoADC)
+static uint16_t feedbackServoStep(uint16_t tailServoADCValue)
 {
     uint16_t feedbackAngle;
 
     // Feedback servo
-    const int32_t ADCFeedback       = tailServoADC;
-	
+    const int32_t ADCFeedback       = tailServoADCValue;
     const int16_t midValue          = triflightConfig()->tri_servo_mid_adc;
 	
     const int16_t endValue          = ADCFeedback < midValue ? triflightConfig()->tri_servo_min_adc : triflightConfig()->tri_servo_max_adc;
@@ -426,16 +425,12 @@ static uint16_t feedbackServoStep(uint16_t tailServoADC)
 
 static void updateServoAngle(void)
 {
-    if (triflightConfig()->tri_servo_feedback == TRI_SERVO_FB_VIRTUAL)
-    {
+    if (triflightConfig()->tri_servo_feedback == TRI_SERVO_FB_VIRTUAL) {
         tailServoAngle = virtualServoStep(tailServoAngle, tailServoSpeed, dT, gpTailServoConf, *gpTailServo);
-    }
-    else
-    {
-        tailServoAngle = feedbackServoStep(tailServoADC);
+    } else {
+        tailServoAngle = feedbackServoStep(tailServoADCValue);
     }
 }
-
 
 static int16_t dynamicYaw(int16_t PIDoutput)
 {
@@ -906,7 +901,7 @@ static void tailTuneModeServoSetup(struct servoSetup_t *pSS, servoParam_t *pServ
                 }
                 else
                 {
-                    pSS->cal.avg.sum += tailServoADC;
+                    pSS->cal.avg.sum += tailServoADCValue;
                     pSS->cal.avg.numOf++;
                 }
             }
@@ -916,7 +911,7 @@ static void tailTuneModeServoSetup(struct servoSetup_t *pSS, servoParam_t *pServ
             {
             case SS_C_MIN:
                 // Wait for the servo to reach min position
-                if (tailServoADC < (triflightConfigMutable()->tri_servo_min_adc + 10))
+                if (tailServoADCValue < (triflightConfigMutable()->tri_servo_min_adc + 10))
                 {
                     if (!pSS->cal.waitingServoToStop)
                     {
@@ -950,7 +945,7 @@ static void tailTuneModeServoSetup(struct servoSetup_t *pSS, servoParam_t *pServ
                 break;
             case SS_C_MAX:
                 // Wait for the servo to reach max position
-                if (tailServoADC > (triflightConfigMutable()->tri_servo_max_adc - 10))
+                if (tailServoADCValue > (triflightConfigMutable()->tri_servo_max_adc - 10))
                 {
                     if (!pSS->cal.waitingServoToStop)
                     {
