@@ -1011,8 +1011,3 @@ void fcReboot(bool bootLoader)
 
     while (true);
 }
-
-float getdT(void)
-{
-    return dT;
-}

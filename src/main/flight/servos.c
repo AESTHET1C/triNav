@@ -363,10 +363,9 @@ void servoMixer(float dT)
         servo[i] = constrain(servo[i], servoParams(i)->min, servoParams(i)->max);
     }
 
-    // If triflight is active, overwrite the
-    if (feature(FEATURE_TRIFLIGHT) && (mixerConfig()->platformType == PLATFORM_TRICOPTER)) {
-        triServoMixer((float)axisPID[YAW]);
-    }
+    // If triflight is active, recalculate the tail servo
+    if (feature(FEATURE_TRIFLIGHT) && (mixerConfig()->platformType == PLATFORM_TRICOPTER))
+        triServoMixer((float)axisPID[YAW], dT);
 }
 
 #define SERVO_AUTOTRIM_TIMER_MS     2000

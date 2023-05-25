@@ -64,8 +64,6 @@ PG_RESET_TEMPLATE(triflightConfig_t, triflightConfig,
     .tri_tail_servo_speed          = 300,
 );
 
-static float dT;
-
 static tailTune_t tailTune = {.mode = TT_MODE_NONE};
 static uint16_t tailServoADCValue    = 0;
 
@@ -113,11 +111,11 @@ static uint16_t getServoAngle(servoParam_t * servoConf, uint16_t servoValue);
 static uint16_t getServoValueAtAngle(servoParam_t * servoConf, uint16_t angle);
 static void     initCurves(void);
 static void     tailMotorStep(int16_t setpoint, float dT);
-static void     tailTuneModeServoSetup(struct servoSetup_t *pSS, servoParam_t *pServoConf, int16_t *pServoVal);
-static void     triTailTuneStep(servoParam_t *pServoConf, int16_t *pServoVal);
-static void     updateServoAngle(void);
 static uint16_t virtualServoStep(uint16_t currentAngle, int16_t servoSpeed, float dT, servoParam_t *servoConf, uint16_t servoValue);
+static void     tailTuneModeServoSetup(struct servoSetup_t *pSS, servoParam_t *pServoConf, int16_t *pServoVal, float dT);
+static void     tailTuneHandler(servoParam_t *pServoConf, int16_t *pServoVal, float dT);
 static void     tailTuneModeThrustTorque(thrustTorque_t *pTTR, const bool isThrottleHigh);
+static void     updateServoAngle(float dT);
 
 static pt1Filter_t feedbackFilter;
 static pt1Filter_t motorFilter;
@@ -195,10 +193,8 @@ static uint16_t getLinearServoValue(servoParam_t *servoConf, int16_t constrained
     return getServoValueAtAngle(servoConf, correctedAngle);
 }
 
-void triServoMixer(int16_t PIDoutput)
+void triServoMixer(int16_t PIDoutput, float dT)
 {
-    dT = getdT();
-	
     // Scale the PID output based on tail motor speed (thrust)
     PIDoutput = dynamicYaw(constrain(PIDoutput, -1000, 1000));
 
@@ -211,7 +207,7 @@ void triServoMixer(int16_t PIDoutput)
                                        dT);
     }
 
-    updateServoAngle();
+    updateServoAngle(dT);
 
 	*gpTailServo = getLinearServoValue(gpTailServoConf, PIDoutput);
 
@@ -220,7 +216,7 @@ void triServoMixer(int16_t PIDoutput)
     DEBUG_SET(DEBUG_TRIFLIGHT, 1, (uint32_t)tailServoADCValue);
     DEBUG_SET(DEBUG_TRIFLIGHT, 2, (uint32_t)tailServoAngle);
 
-    triTailTuneStep(gpTailServoConf, gpTailServo);
+    tailTuneHandler(gpTailServoConf, gpTailServo, dT);
 
     // Update the tail motor virtual feedback
     tailMotorStep(motor[triflightConfig()->tri_tail_motor_index], dT);
@@ -423,7 +419,7 @@ static uint16_t feedbackServoStep(uint16_t tailServoADCValue)
     return feedbackAngle;
 }
 
-static void updateServoAngle(void)
+static void updateServoAngle(float dT)
 {
     if (triflightConfig()->tri_servo_feedback == TRI_SERVO_FB_VIRTUAL) {
         tailServoAngle = virtualServoStep(tailServoAngle, tailServoSpeed, dT, gpTailServoConf, *gpTailServo);
@@ -565,7 +561,7 @@ bool isRcAxisWithinDeadband(int32_t axis)
     return ret;
 }
 
-static void triTailTuneStep(servoParam_t *pServoConf, int16_t *pServoVal)
+static void tailTuneHandler(servoParam_t *pServoConf, int16_t *pServoVal, float dT)
 {
     if (!IS_RC_MODE_ACTIVE(BOXTAILTUNE))
     {
@@ -602,7 +598,7 @@ static void triTailTuneStep(servoParam_t *pServoConf, int16_t *pServoVal)
         tailTuneModeThrustTorque(&tailTune.ttr, (THROTTLE_HIGH == calculateThrottleStatus(THROTTLE_STATUS_TYPE_RC)));
         break;
     case TT_MODE_SERVO_SETUP:
-        tailTuneModeServoSetup(&tailTune.ss, pServoConf, pServoVal);
+        tailTuneModeServoSetup(&tailTune.ss, pServoConf, pServoVal, dT);
         break;
     case TT_MODE_NONE:
         break;
@@ -743,7 +739,7 @@ static void tailTuneModeThrustTorque(thrustTorque_t *pTTR, const bool isThrottle
     }
 }
 
-static void tailTuneModeServoSetup(struct servoSetup_t *pSS, servoParam_t *pServoConf, int16_t *pServoVal)
+static void tailTuneModeServoSetup(struct servoSetup_t *pSS, servoParam_t *pServoConf, int16_t *pServoVal, float dT)
 {
     // Check mode select
     if (isRcAxisWithinDeadband(PITCH) && (rcCommand[ROLL] < -100))
