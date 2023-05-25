@@ -436,21 +436,6 @@ static void updateServoAngle(void)
     }
 }
 
-static void updateServoFeedbackADCChannel(uint8_t tri_servo_feedback)
-{
-    switch (tri_servo_feedback)
-    {
-    case TRI_SERVO_FB_RSSI:
-        tailServoADCChannel = ADC_RSSI;
-		break;
-    case TRI_SERVO_FB_CURRENT:
-        tailServoADCChannel = ADC_CURRENT;
-		break;
-    default:
-        tailServoADCChannel = ADC_RSSI;
-		break;
-    }
-}
 
 static int16_t dynamicYaw(int16_t PIDoutput)
 {
