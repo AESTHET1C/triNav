@@ -94,12 +94,12 @@ typedef enum {
 } triServoDirection_e;
 
 typedef enum {
-    TT_IDLE = 0,
-    TT_WAIT,
-    TT_ACTIVE,
-    TT_WAIT_FOR_DISARM,
-    TT_DONE,
-    TT_FAIL,
+    TTR_IDLE = 0,
+    TTR_WAIT,
+    TTR_ACTIVE,
+    TTR_WAIT_FOR_DISARM,
+    TTR_DONE,
+    TTR_FAIL,
 } tailTuneState_e;
 
 typedef enum {
@@ -141,7 +141,7 @@ typedef struct thrustTorque_s {
 
 typedef struct tailTune_s {
     tailtuneMode_e mode;
-    thrustTorque_t tt;
+    thrustTorque_t ttr;
     struct servoSetup_t {
         servoSetupState_e state;
         float servoVal;

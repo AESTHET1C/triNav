@@ -115,9 +115,9 @@ static void     initCurves(void);
 static void     tailMotorStep(int16_t setpoint, float dT);
 static void     tailTuneModeServoSetup(struct servoSetup_t *pSS, servoParam_t *pServoConf, int16_t *pServoVal);
 static void     triTailTuneStep(servoParam_t *pServoConf, int16_t *pServoVal);
-static void     tailTuneModeThrustTorque(thrustTorque_t *pTT, const bool isThrottleHigh);
 static void     updateServoAngle(void);
 static uint16_t virtualServoStep(uint16_t currentAngle, int16_t servoSpeed, float dT, servoParam_t *servoConf, uint16_t servoValue);
+static void     tailTuneModeThrustTorque(thrustTorque_t *pTTR, const bool isThrottleHigh);
 
 static pt1Filter_t feedbackFilter;
 static pt1Filter_t motorFilter;
@@ -607,10 +607,8 @@ static void triTailTuneStep(servoParam_t *pServoConf, int16_t *pServoVal)
         if (ARMING_FLAG(ARMED))
         {
             tailTune.mode     = TT_MODE_THRUST_TORQUE;
-            tailTune.tt.state = TT_IDLE;
-        }
-        else
-        {
+            tailTune.ttr.state = TTR_IDLE;
+        } else {
             // Prevent accidental arming in servo setup mode
             ENABLE_ARMING_FLAG(ARMING_DISABLED_TAILTUNE);
             
@@ -619,10 +617,9 @@ static void triTailTuneStep(servoParam_t *pServoConf, int16_t *pServoVal)
         }
     }
 
-    switch (tailTune.mode)
-    {
+    switch (tailTune.mode) {
     case TT_MODE_THRUST_TORQUE:
-        tailTuneModeThrustTorque(&tailTune.tt, (THROTTLE_HIGH == calculateThrottleStatus(THROTTLE_STATUS_TYPE_RC)));
+        tailTuneModeThrustTorque(&tailTune.ttr, (THROTTLE_HIGH == calculateThrottleStatus(THROTTLE_STATUS_TYPE_RC)));
         break;
     case TT_MODE_SERVO_SETUP:
         tailTuneModeServoSetup(&tailTune.ss, pServoConf, pServoVal);
@@ -632,91 +629,91 @@ static void triTailTuneStep(servoParam_t *pServoConf, int16_t *pServoVal)
     }
 }
 
-static void tailTuneModeThrustTorque(thrustTorque_t *pTT, const bool isThrottleHigh)
+static void tailTuneModeThrustTorque(thrustTorque_t *pTTR, const bool isThrottleHigh)
 {
-    switch(pTT->state)
+    switch(pTTR->state)
     {
-    case TT_IDLE:
+    case TTR_IDLE:
         // Calibration has been requested, only start when throttle is up
         if (isThrottleHigh && ARMING_FLAG(ARMED))
         {
             beeper(BEEPER_BAT_LOW);
             
-            pTT->startBeepDelay_ms   = 1000;
-            pTT->timestamp_ms        = millis();
-            pTT->lastAdjTime_ms      = millis();
-            pTT->state               = TT_WAIT;
-            pTT->servoAvgAngle.sum   = 0;
-            pTT->servoAvgAngle.numOf = 0;
+            pTTR->startBeepDelay_ms   = 1000;
+            pTTR->timestamp_ms        = millis();
+            pTTR->lastAdjTime_ms      = millis();
+            pTTR->state               = TTR_WAIT;
+            pTTR->servoAvgAngle.sum   = 0;
+            pTTR->servoAvgAngle.numOf = 0;
             hoverThrottleSum         = 0;
         }
         break;
-    case TT_WAIT:
+    case TTR_WAIT:
         if (isThrottleHigh && ARMING_FLAG(ARMED))
         {
             /* Wait for 5 seconds before activating the tuning.
             This is so that pilot has time to take off if the tail tune mode was activated on ground. */
-            if (IsDelayElapsed_ms(pTT->timestamp_ms, 5000))
+            if (IsDelayElapsed_ms(pTTR->timestamp_ms, 5000))
             {
                 // Longer beep when starting
                 beeper(BEEPER_BAT_CRIT_LOW);
                 
-                pTT->state        = TT_ACTIVE;
-                pTT->timestamp_ms = millis();
+                pTTR->state        = TTR_ACTIVE;
+                pTTR->timestamp_ms = millis();
             }
-            else if (IsDelayElapsed_ms(pTT->timestamp_ms, pTT->startBeepDelay_ms))
+            else if (IsDelayElapsed_ms(pTTR->timestamp_ms, pTTR->startBeepDelay_ms))
             {
                 // Beep every second until start
                 beeper(BEEPER_BAT_LOW);
                 
-                pTT->startBeepDelay_ms += 1000;
+                pTTR->startBeepDelay_ms += 1000;
             }
         }
         else
         {
-            pTT->state = TT_IDLE;
+            pTTR->state = TTR_IDLE;
         }
         break;
-    case TT_ACTIVE:
+    case TTR_ACTIVE:
         if (isThrottleHigh &&
             isRcAxisWithinDeadband(ROLL)  &&
             isRcAxisWithinDeadband(PITCH) &&
             isRcAxisWithinDeadband(YAW)   &&
             (fabsf(gyro.gyroADCf[FD_YAW]) <= 10.0f)) // deg/s
         {
-            if (IsDelayElapsed_ms(pTT->timestamp_ms, 250))
+            if (IsDelayElapsed_ms(pTTR->timestamp_ms, 250))
             {
                 // RC commands have been within deadbands for 250 ms
-                if (IsDelayElapsed_ms(pTT->lastAdjTime_ms, 10))
+                if (IsDelayElapsed_ms(pTTR->lastAdjTime_ms, 10))
                 {
-                    pTT->lastAdjTime_ms = millis();
+                    pTTR->lastAdjTime_ms = millis();
 
-                    pTT->servoAvgAngle.sum += triGetCurrentServoAngle();
-                    pTT->servoAvgAngle.numOf++;
+                    pTTR->servoAvgAngle.sum += triGetCurrentServoAngle();
+                    pTTR->servoAvgAngle.numOf++;
 
                     hoverThrottleSum += (motor[triflightConfig()->tri_tail_motor_index]);
 
                     beeperConfirmationBeeps(1);
 
-                    if (pTT->servoAvgAngle.numOf >= 300)
+                    if (pTTR->servoAvgAngle.numOf >= 300)
                     {
                         beeper(BEEPER_READY_BEEP);
                         
-                        pTT->state        = TT_WAIT_FOR_DISARM;
-                        pTT->timestamp_ms = millis();
+                        pTTR->state        = TTR_WAIT_FOR_DISARM;
+                        pTTR->timestamp_ms = millis();
                     }
                 }
             }
         }
         else
         {
-            pTT->timestamp_ms = millis();
+            pTTR->timestamp_ms = millis();
         }
         break;
-    case TT_WAIT_FOR_DISARM:
+    case TTR_WAIT_FOR_DISARM:
         if (!ARMING_FLAG(ARMED))
         {
-            float averageServoAngle = pTT->servoAvgAngle.sum / 10.0f / pTT->servoAvgAngle.numOf;
+            float averageServoAngle = pTTR->servoAvgAngle.sum / 10.0f / pTTR->servoAvgAngle.numOf;
             
             if (averageServoAngle > 90.5f && averageServoAngle < 120.f)
             {
@@ -725,42 +722,42 @@ static void tailTuneModeThrustTorque(thrustTorque_t *pTT, const bool isThrottleH
                 
                 triflightConfigMutable()->tri_tail_motor_thrustfactor = 10.0f * cos_approx(averageServoAngle) / sin_approx(averageServoAngle);
 
-                triflightConfigMutable()->tri_dynamic_yaw_hoverthrottle = hoverThrottleSum / (int16_t)pTT->servoAvgAngle.numOf;
+                triflightConfigMutable()->tri_dynamic_yaw_hoverthrottle = hoverThrottleSum / (int16_t)pTTR->servoAvgAngle.numOf;
 
                 saveConfigAndNotify();
 
-                pTT->state = TT_DONE;
+                pTTR->state = TTR_DONE;
             }
             else
             {
-                pTT->state = TT_FAIL;
+                pTTR->state = TTR_FAIL;
             }
-            pTT->timestamp_ms = millis();
+            pTTR->timestamp_ms = millis();
         }
         else
         {
-            if (IsDelayElapsed_ms(pTT->timestamp_ms, 2000))
+            if (IsDelayElapsed_ms(pTTR->timestamp_ms, 2000))
             {
                 beeper(BEEPER_READY_BEEP);
                 
-                pTT->timestamp_ms = millis();
+                pTTR->timestamp_ms = millis();
             }
         }
         break;
-    case TT_DONE:
-        if (IsDelayElapsed_ms(pTT->timestamp_ms, 2000))
+    case TTR_DONE:
+        if (IsDelayElapsed_ms(pTTR->timestamp_ms, 2000))
         {
             beeper(BEEPER_ACTION_SUCCESS);
             
-            pTT->timestamp_ms = millis();
+            pTTR->timestamp_ms = millis();
         }
         break;
-    case TT_FAIL:
-        if (IsDelayElapsed_ms(pTT->timestamp_ms, 2000))
+    case TTR_FAIL:
+        if (IsDelayElapsed_ms(pTTR->timestamp_ms, 2000))
         {
             beeper(BEEPER_ACTION_FAIL);
             
-            pTT->timestamp_ms = millis();
+            pTTR->timestamp_ms = millis();
         }
         break;
     }
