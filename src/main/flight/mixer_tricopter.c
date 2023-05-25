@@ -547,19 +547,11 @@ static void tailMotorStep(int16_t setpoint, float dT)
                                        TRI_MOTOR_FEEDBACK_LPF_CUTOFF_HZ,
                                        dT);
  
-#if 0
-    DEBUG_SET(DEBUG_TRIFLIGHT, 0, setpoint);
-    DEBUG_SET(DEBUG_TRIFLIGHT, 1, current);
-    DEBUG_SET(DEBUG_TRIFLIGHT, 2, tailMotorVirtual);
-#endif
+    // Debug
+    //DEBUG_SET(DEBUG_TRIFLIGHT, 0, setpoint);
+    //DEBUG_SET(DEBUG_TRIFLIGHT, 1, current);
+    //DEBUG_SET(DEBUG_TRIFLIGHT, 2, tailMotorVirtual);
 
-}
-
-_Bool triIsEnabledServoUnarmed(void)
-{
-    const _Bool isEnabledServoUnarmed = (servoConfig()->tri_unarmed_servo != 0) || FLIGHT_MODE(TAILTUNE_MODE);
-
-    return isEnabledServoUnarmed;
 }
 
 ///////////////////////////////////////////////////////////

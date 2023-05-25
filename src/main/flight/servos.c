@@ -217,8 +217,10 @@ void writeServos(void)
     bool disableTricopterServo = false;
 
     // Center tail servo in the case of a disarmed tricopter with tri_unarmed_servo disabled
-    if (mixerConfig()->platformType == PLATFORM_TRICOPTER && !ARMING_FLAG(ARMED) && !servoConfig()->tri_unarmed_servo)
+    if (mixerConfig()->platformType == PLATFORM_TRICOPTER && !ARMING_FLAG(ARMED) &&
+    !servoConfig()->tri_unarmed_servo && !FLIGHT_MODE(TAILTUNE_MODE)) {
         disableTricopterServo = true;
+    }
 
     for (int i = minServoIndex; i <= maxServoIndex; i++) {
         if (disableTricopterServo && (i == SERVO_TRICOPTER_TAIL))

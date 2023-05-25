@@ -93,12 +93,6 @@ typedef enum {
     TRI_SERVO_DIRECTION_REVERSED,
 } triServoDirection_e;
 
-uint16_t triGetCurrentServoAngle(void);
-int16_t  triGetMotorCorrection(uint8_t motorIndex);
-void     triServoMixer(int16_t PIDoutput);
-void     triInitMixer(servoParam_t *pTailServoConfig, int16_t *pTailServo);
-_Bool    triIsEnabledServoUnarmed(void);
-
 typedef enum {
     TT_IDLE = 0,
     TT_WAIT,
@@ -167,3 +161,10 @@ typedef struct tailTune_s {
     } ss;
 } tailTune_t;
 
+//////////////////////////////
+// Public functions
+//////////////////////////////
+void     triMixerInit(servoParam_t *pTailServoConfig, int16_t *pTailServo);
+uint16_t triGetCurrentServoAngle(void);
+int16_t  triGetMotorCorrection(uint8_t motorIndex);
+void     triServoMixer(int16_t PIDoutput, float dT);
