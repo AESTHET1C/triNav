@@ -117,7 +117,6 @@ static void     tailTuneModeServoSetup(struct servoSetup_t *pSS, servoParam_t *p
 static void     triTailTuneStep(servoParam_t *pServoConf, int16_t *pServoVal);
 static void     tailTuneModeThrustTorque(thrustTorque_t *pTT, const bool isThrottleHigh);
 static void     updateServoAngle(void);
-static void     updateServoFeedbackADCChannel(uint8_t tri_servo_feedback);
 static uint16_t virtualServoStep(uint16_t currentAngle, int16_t servoSpeed, float dT, servoParam_t *servoConf, uint16_t servoValue);
 
 static pt1Filter_t feedbackFilter;
@@ -138,8 +137,18 @@ void triInitMixer(servoParam_t *pTailServoConfig, int16_t *pTailServo)
     // Reset the I term when motor deceleration has lasted 35% of the min to max time
     resetITermDecelerationLasted_ms = (float)triflightConfig()->tri_motor_acceleration * 10.0f * 0.35f;
 
+    // Configure ADC data source
+    switch (triflightConfig()->tri_servo_feedback) {
+    default:
+    case TRI_SERVO_FB_RSSI:
+        tailServoADCChannel = ADC_RSSI;
+        break;
+    case TRI_SERVO_FB_CURRENT:
+        tailServoADCChannel = ADC_CURRENT;
+        break;
+    }
+
     initCurves();
-    updateServoFeedbackADCChannel(triflightConfig()->tri_servo_feedback);
 }
 
 static void initCurves(void)
