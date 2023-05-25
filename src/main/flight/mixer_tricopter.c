@@ -110,8 +110,8 @@ static uint16_t getPitchCorrectionMaxPhaseShift(int16_t servoAngle,
 static uint16_t getServoAngle(servoParam_t * servoConf, uint16_t servoValue);
 static uint16_t getServoValueAtAngle(servoParam_t * servoConf, uint16_t angle);
 static void     initCurves(void);
-static void     tailMotorStep(int16_t setpoint, float dT);
 static uint16_t virtualServoStep(uint16_t currentAngle, int16_t servoSpeed, float dT, servoParam_t *servoConf, uint16_t servoValue);
+static void     virtualMotorStep(int16_t setpoint, float dT);
 static void     tailTuneModeServoSetup(struct servoSetup_t *pSS, servoParam_t *pServoConf, int16_t *pServoVal, float dT);
 static void     tailTuneHandler(servoParam_t *pServoConf, int16_t *pServoVal, float dT);
 static void     tailTuneModeThrustTorque(thrustTorque_t *pTTR, const bool isThrottleHigh);
@@ -219,7 +219,7 @@ void triServoMixer(int16_t PIDoutput, float dT)
     tailTuneHandler(gpTailServoConf, gpTailServo, dT);
 
     // Update the tail motor virtual feedback
-    tailMotorStep(motor[triflightConfig()->tri_tail_motor_index], dT);
+    virtualMotorStep(motor[triflightConfig()->tri_tail_motor_index], dT);
 }
 
 int16_t triGetMotorCorrection(uint8_t motorIndex)
@@ -496,7 +496,7 @@ static int16_t dynamicYaw(int16_t PIDoutput)
 	return constrain(scaledPIDoutput, -1000, 1000);
 }
 
-static void tailMotorStep(int16_t setpoint, float dT)
+static void virtualMotorStep(int16_t setpoint, float dT)
 {
     static float current = 1000;
     float dS; // Max change of an speed since last check
