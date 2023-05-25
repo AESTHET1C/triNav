@@ -42,14 +42,6 @@
 
 #include "sensors/gyro.h"
 
-
-
-#define TRI_TAIL_SERVO_ANGLE_MID    (900)
-#define TRI_YAW_FORCE_CURVE_SIZE    (100)
-#define TRI_TAIL_SERVO_MAX_ANGLE    (500)
-
-#define TRI_YAW_FORCE_PRECISION     (1000)
-
 #define IsDelayElapsed_us(timestamp_us, delay_us) ((uint32_t)(micros() - timestamp_us) >= delay_us)
 #define IsDelayElapsed_ms(timestamp_ms, delay_ms) ((uint32_t)(millis() - timestamp_ms) >= delay_ms)
 
@@ -76,8 +68,6 @@ static float dT;
 
 static tailTune_t tailTune = {.mode = TT_MODE_NONE};
 
-static int16_t  tailMotorAccelerationDelay_ms = 30;
-static int16_t  tailMotorDecelerationDelay_ms = 100;
 static int16_t  tailMotorAccelerationDelay_angle;
 static int16_t  tailMotorDecelerationDelay_angle;
 static int16_t  tailMotorPitchZeroAngle;
@@ -158,8 +148,8 @@ static void initCurves(void)
     // Multiplied by 10 to get decidegrees
     tailMotorPitchZeroAngle = 10.0f * 2.0f * (atanf(((sqrtf(tailServoThrustFactor * tailServoThrustFactor + 1) + 1) / tailServoThrustFactor)));
 
-    tailMotorAccelerationDelay_angle = 10.0f * (tailMotorAccelerationDelay_ms / 1000.0f) * tailServoSpeed;
-    tailMotorDecelerationDelay_angle = 10.0f * (tailMotorDecelerationDelay_ms / 1000.0f) * tailServoSpeed;
+    tailMotorAccelerationDelay_angle = 10.0f * (TRI_MOTOR_ACCELERATION_DELAY_MS / 1000.0f) * tailServoSpeed;
+    tailMotorDecelerationDelay_angle = 10.0f * (TRI_MOTOR_DECELERATION_DELAY_MS / 1000.0f) * tailServoSpeed;
 
     const int16_t minAngle = TRI_TAIL_SERVO_ANGLE_MID - tailServoMaxAngle;
     const int16_t maxAngle = TRI_TAIL_SERVO_ANGLE_MID + tailServoMaxAngle;

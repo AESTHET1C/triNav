@@ -49,8 +49,17 @@
 #define TAIL_SERVO_SPEED_MIN          (0)
 #define TAIL_SERVO_SPEED_MAX          (1000)
 
-#define TRI_MOTOR_FEEDBACK_LPF_CUTOFF_HZ        (5)
-#define TRI_SERVO_FEEDBACK_LPF_CUTOFF_HZ        (70)
+#define TRI_TAIL_SERVO_ANGLE_MID      (900)
+#define TRI_YAW_FORCE_CURVE_SIZE      (100)
+#define TRI_TAIL_SERVO_MAX_ANGLE      (500)
+
+#define TRI_YAW_FORCE_PRECISION       (1000)
+
+#define TRI_MOTOR_FEEDBACK_LPF_CUTOFF_HZ  (5)
+#define TRI_SERVO_FEEDBACK_LPF_CUTOFF_HZ  (70)
+
+#define TRI_MOTOR_ACCELERATION_DELAY_MS   30
+#define TRI_MOTOR_DECELERATION_DELAY_MS   100
 
 typedef struct triflightConfig_s {
     uint16_t tri_dynamic_yaw_minthrottle;
