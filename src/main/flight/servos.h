@@ -75,6 +75,8 @@ typedef enum {
     SERVO_FLAPPERON_2 = 4,
     SERVO_RUDDER = 5,
 
+    SERVO_TRICOPTER_TAIL = 5,
+
     SERVO_BICOPTER_LEFT = 4,
     SERVO_BICOPTER_RIGHT = 5,
 

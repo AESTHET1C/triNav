@@ -161,9 +161,7 @@ void servosInit(void)
     }
 
     if (feature(FEATURE_TRIFLIGHT) && (mixerConfig()->platformType == PLATFORM_TRICOPTER))
-    {
-        triInitMixer(servoParamsMutable(SERVO_RUDDER), &servo[SERVO_RUDDER]);
-    }
+        triMixerInit(servoParamsMutable(SERVO_TRICOPTER_TAIL), &servo[SERVO_TRICOPTER_TAIL]);
 }
 
 int getServoCount(void)
@@ -232,21 +230,17 @@ void writeServos(void)
     
 #if !defined(SITL_BUILD)
     int servoIndex = 0;
-    bool zeroServoValue = false;
+    bool disableTricopterServo = false;
 
-    /*
-     * in case of tricopters, there might me a need to zero servo output when unarmed
-     */
-    if (mixerConfig()->platformType == PLATFORM_TRICOPTER && !ARMING_FLAG(ARMED) && !servoConfig()->tri_unarmed_servo) {
-        zeroServoValue = true;
-    }
+    // Center tail servo in the case of a disarmed tricopter with tri_unarmed_servo disabled
+    if (mixerConfig()->platformType == PLATFORM_TRICOPTER && !ARMING_FLAG(ARMED) && !servoConfig()->tri_unarmed_servo)
+        disableTricopterServo = true;
 
     for (int i = minServoIndex; i <= maxServoIndex; i++) {
-        if (zeroServoValue) {
-            pwmWriteServo(servoIndex++, 0);
-        } else {
+        if (disableTricopterServo && (i == SERVO_TRICOPTER_TAIL))
+            pwmWriteServo(servoIndex++, servoParams(i)->middle);
+        else
             pwmWriteServo(servoIndex++, servo[i]);
-        }
     }
 #endif
 }
