@@ -199,11 +199,8 @@ void triServoMixer(int16_t PIDoutput)
 {
     dT = getdT();
 	
-    // Dynamic yaw expects input [-1000, 1000]
-    PIDoutput = constrain(PIDoutput, -1000, 1000);
-
     // Scale the PID output based on tail motor speed (thrust)
-    PIDoutput = dynamicYaw(PIDoutput);
+    PIDoutput = dynamicYaw(constrain(PIDoutput, -1000, 1000));
 
     if (triflightConfig()->tri_servo_feedback != TRI_SERVO_FB_VIRTUAL)
     {
