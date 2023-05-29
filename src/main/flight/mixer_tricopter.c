@@ -120,7 +120,7 @@ static void     updateServoAngle(float dT);
 static pt1Filter_t feedbackFilter;
 static pt1Filter_t motorFilter;
 
-void triInitMixer(servoParam_t *pTailServoConfig, int16_t *pTailServo)
+void triMixerInit(servoParam_t *pTailServoConfig, int16_t *pTailServo)
 {
     gpTailServoConf       = pTailServoConfig;
     gpTailServo           = pTailServo;
